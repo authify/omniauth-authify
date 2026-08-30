@@ -161,6 +161,20 @@ CLIENT_SECRET="$(extract_client_secret "$D/app_show.html")"
 CLIENT_ID="$(grep -oE '[a-z0-9]{26}======|\b[a-z0-9]{26}\b' "$D/app_show.html" | head -1)"
 [ -n "$CLIENT_SECRET" ] || { echo "FAIL: could not extract client secret"; exit 1; }
 
+echo "> 7. relaxing rate limits (the suite drives several auth flows/min)"
+curl -s -b "$JAR" -c "$JAR" "$AUTHIFY_URL/$ORG_SLUG/settings/configuration" -o "$D/cfg.html"
+CS="$(csrf_from "$D/cfg.html")"
+curl -s -b "$JAR" -c "$JAR" -X POST "$AUTHIFY_URL/$ORG_SLUG/settings/configuration" \
+  --data-urlencode "_method=patch" \
+  --data-urlencode "_csrf_token=$CS" \
+  --data-urlencode "settings[quota_auth_rate_limit]=1000" \
+  --data-urlencode "settings[quota_oauth_rate_limit]=1000" \
+  --data-urlencode "settings[quota_api_rate_limit]=1000" \
+  --data-urlencode "settings[allow_invitations]=true" \
+  --data-urlencode "settings[allow_oauth]=true" \
+  -D "$D/8.txt" -o /dev/null
+grep -q "302" <(head -1 "$D/8.txt") || { echo "FAIL: rate limit configuration failed"; exit 1; }
+
 echo "> bootstrap complete"
 cat <<EOS
 ORG_SLUG=$ORG_SLUG

@@ -128,9 +128,10 @@ login_as_user
 deny_consent
 DENY_URL="$(location_of "$D/5.txt")"
 [[ "$DENY_URL" == *"error=access_denied"* ]] || { echo "FAIL: expected access_denied, got: $DENY_URL"; exit 1; }
-curl -s -b "$JAR" -c "$JAR" "$DENY_URL" -o /dev/null
-grep -q "access_denied" <(curl -s -b "$JAR" "$D/failure_loc_probe" 2>/dev/null) 2>/dev/null || true
-# The strategy redirects the smoke app to /auth/failure?message=access_denied
+# Following the callback should land on the app's failure endpoint,
+# which the on_failure handler renders as JSON including the error
+curl -sL -b "$JAR" -c "$JAR" "$DENY_URL" -o "$D/failure_body.txt"
+grep -q 'access_denied' "$D/failure_body.txt" || { echo "FAIL: failure endpoint did not report access_denied"; cat "$D/failure_body.txt"; exit 1; }
 echo "PASS: denial routed to failure endpoint (access_denied)"
 
 echo "> TEST 3: replayed authorization code"
