@@ -29,20 +29,105 @@ Because Authify is multi-tenant, both the server base URL (`:site`) and the
 client in the Authify dashboard (or via the Management API), then configure
 the provider with its `client_id` and `client_secret`.
 
-### Rails (Devise or plain OmniAuth)
+Setting the strategy up in a Rails app involves four steps:
+
+- [Store the credentials](#store-the-credentials)
+- [Create the initializer](#create-the-initializer)
+- [Create the callback controller](#create-the-callback-controller)
+- [Add routes](#add-routes)
+
+### Store the credentials
+
+Keep the Authify connection settings out of source control. Create
+`config/authify.yml`:
+
+```yaml
+development:
+  authify_site: "https://authify.example.com"
+  authify_organization: "my-org"
+  authify_client_id: <YOUR CLIENT ID>
+  authify_client_secret: <YOUR CLIENT SECRET>
+```
+
+### Create the initializer
+
+Add the OmniAuth middleware in `config/initializers/omniauth.rb`:
 
 ```ruby
-# config/initializers/omniauth.rb
+AUTHIFY_CONFIG = Rails.application.config_for(:authify)
+
 Rails.application.config.middleware.use OmniAuth::Builder do
   provider :authify,
-           ENV["AUTHIFY_CLIENT_ID"],
-           ENV["AUTHIFY_CLIENT_SECRET"],
-           site: "https://authify.example.com",
-           organization: "my-org"
+           AUTHIFY_CONFIG["authify_client_id"],
+           AUTHIFY_CONFIG["authify_client_secret"],
+           site: AUTHIFY_CONFIG["authify_site"],
+           organization: AUTHIFY_CONFIG["authify_organization"],
+           scope: "openid profile email"
 end
 ```
 
-### Sinatra
+Note that OmniAuth 2.x only accepts POST requests to `/auth/:provider` by
+default. In a Rails app, add `omniauth-rails_csrf_protection` to your
+`Gemfile` and link with `button_to` (see [Logging in](#logging-in)).
+
+### Create the callback controller
+
+Create a controller to receive Authify's response — `request.env["omniauth.auth"]`
+holds the full [auth hash](#auth-hash) once the strategy has verified the ID
+token:
+
+```ruby
+# ./app/controllers/authify_controller.rb
+class AuthifyController < ApplicationController
+  def callback
+    # The strategy has already verified the ID token's signature (against
+    # Authify's JWKS), issuer, audience and the per-login nonce by the time
+    # this runs. Store what you need from the auth hash.
+    auth = request.env["omniauth.auth"]
+    session[:user_info] = {
+      uid: auth["uid"],
+      name: auth["info"]["name"],
+      email: auth["info"]["email"]
+    }
+
+    redirect_to "/dashboard"
+  end
+
+  def failure
+    # Failed authentication (user denied consent, invalid state, etc.)
+    @error_reason = request.params["message"]
+  end
+end
+```
+
+### Add routes
+
+Point OmniAuth's callback and failure paths at the controller in
+`config/routes.rb`:
+
+```ruby
+Rails.application.routes.draw do
+  # ...
+  post "/auth/authify"          => "authify#login",  as: :authify_login
+  get  "/auth/authify/callback" => "authify#callback"
+  get  "/auth/failure"          => "authify#failure"
+end
+```
+
+### Logging in
+
+Start the flow by POSTing to `/auth/authify` (POST is required by OmniAuth
+2.x — a `button_to` covers CSRF protection without extra work):
+
+```erb
+<%= button_to "Sign in with Authify", authify_login_path, method: :post %>
+```
+
+If a `prompt` parameter is included in that request (e.g.
+`/auth/authify?prompt=none` for silent authentication), the strategy
+forwards it to Authify.
+
+### Sinatra (or other Rack apps)
 
 ```ruby
 require "omniauth-authify"
@@ -53,8 +138,8 @@ use OmniAuth::Builder do
 end
 ```
 
-Note that OmniAuth 2.x only accepts POST requests to `/auth/:provider` by
-default; use something like `omniauth-rails_csrf_protection` in Rails apps.
+Register the callback URL and handle the result in any route; `env["omniauth.auth"]`
+carries the same auth hash as above.
 
 ## Options
 
