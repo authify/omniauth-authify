@@ -1,0 +1,67 @@
+# Shims for types referenced by our signatures but not shipped with RBS
+# definitions by their gems (omniauth / omniauth-oauth2 / oauth2 / jwt).
+#
+# These aren't meant to be complete — they define just enough for the
+# OmniAuth::Authify signatures to validate. If upstream gems publish
+# signatures, these should be dropped in favor of theirs.
+
+module OmniAuth
+  def self.config: () -> untyped
+
+  class Strategy
+    class Options
+      def []: (Symbol | String key) -> untyped
+
+      def []=: (Symbol | String key, untyped value) -> untyped
+
+      def deep_merge!: (Hash[Symbol | String, untyped] other) -> untyped
+    end
+  end
+
+  module Strategies
+    # Stub for OmniAuth::Strategies::OAuth2 from the omniauth-oauth2 gem
+    class OAuth2
+      # Rack response triple: [status, headers, body]
+      def call!: (Hash[String, untyped] env) -> untyped
+
+      def options: () -> OmniAuth::Strategy::Options
+
+      def client: () -> ::OAuth2::Client
+
+      def session: () -> untyped
+
+      def request: () -> untyped
+
+      def fail!: (Symbol message_key, ?untyped exception) -> rack_response
+    end
+  end
+
+  class Config
+  end
+end
+
+module OAuth2
+  class Client
+  end
+
+  class AccessToken
+    def token: () -> String
+
+    def expires?: () -> bool
+
+    def expires_at: () -> Integer
+
+    def refresh_token: () -> String?
+
+    def params: () -> Hash[String, untyped]
+
+    def []: (String | Symbol key) -> untyped
+  end
+end
+
+module JWT
+  VERSION: String
+end
+
+# Rack response triple: [status, headers, body]
+type rack_response = [Integer, Hash[String | Symbol, untyped], untyped]

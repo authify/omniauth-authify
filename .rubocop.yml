@@ -1,0 +1,88 @@
+plugins:
+- rubocop-rake
+- rubocop-rspec
+
+Layout/LineLength:
+  Max: 100
+
+AllCops:
+  TargetRubyVersion: 3.4
+  Exclude:
+  - 'vendor/**/*'
+  NewCops: enable
+
+Metrics/AbcSize:
+  Max: 21
+  Exclude:
+  - 'spec/support/*'
+
+Metrics/BlockLength:
+  Max: 35
+  Exclude:
+  - 'spec/**/*_spec.rb'
+  - 'spec/support/*.rb'
+  - 'Rakefile'
+  - '*.gemspec'
+
+Metrics/CyclomaticComplexity:
+  Max: 12
+
+Metrics/MethodLength:
+  Max: 25
+
+Metrics/ModuleLength:
+  Max: 160
+  Exclude:
+  - 'spec/**/*_spec.rb'
+
+Metrics/ClassLength:
+  Max: 300
+  Exclude:
+  - 'spec/**/*_spec.rb'
+
+Metrics/ParameterLists:
+  Max: 6
+  Exclude:
+  - 'spec/support/*'
+
+Gemspec/RequireMFA:
+  Enabled: false
+
+Gemspec/DevelopmentDependencies:
+  Enabled: false
+
+Style/MixinUsage:
+  Exclude:
+  - "bin/console"
+
+Style/StringLiterals:
+  Enabled: true
+  EnforcedStyle: double_quotes
+
+Style/StringLiteralsInInterpolation:
+  Enabled: true
+  EnforcedStyle: double_quotes
+
+Style/StringConcatenation:
+  Exclude:
+  - 'Rakefile'
+
+Naming/FileName:
+  Exclude:
+  - 'lib/omniauth-authify.rb'
+
+RSpec/SpecFilePathFormat:
+  CustomTransform:
+    OmniAuth: omni_auth
+
+RSpec/NamedSubject:
+  Enabled: false
+
+RSpec/MultipleMemoizedHelpers:
+  Max: 12
+
+RSpec/MultipleExpectations:
+  Max: 13
+
+RSpec/ExampleLength:
+  Max: 40

@@ -1,0 +1,86 @@
+module OmniAuth
+  module Authify
+    # The gem's current version
+    VERSION: String
+
+    # Raised for configuration errors within the strategy itself
+    class ConfigurationError < StandardError
+      def initialize: (String message) -> void
+
+      def message: () -> String
+    end
+
+    # Raised when an Authify-issued ID token (or the signing keys used to
+    # verify it) cannot be validated
+    class TokenValidationError < StandardError
+      def initialize: (String message) -> void
+
+      def message: () -> String
+    end
+
+    # Validates OpenID Connect ID tokens issued by Authify
+    class JwtValidator
+      # ID token signature algorithms this validator accepts
+      SUPPORTED_ALGORITHMS: Array[String]
+      # Claims that must be present in every ID token
+      REQUIRED_CLAIMS: Array[String]
+      # Network failures that map to a TokenValidationError during JWKS fetches
+      NETWORK_ERRORS: Array[singleton(StandardError)]
+
+      # Creates a validator
+      #
+      # - client_id: the OAuth2 client ID (expected `aud` value)
+      # - issuer: the expected value of the ID token `iss` claim
+      # - jwks_uri: the organization's JWKS endpoint URL
+      def initialize: (client_id: String, issuer: String, jwks_uri: String) -> void
+
+      # Decodes an ID token and verifies its signature and claims
+      #
+      # - jwt: the ID token
+      # - authorize_params: per-login parameters stored at the start of the
+      #   flow; may contain +nonce+, +leeway+, +max_age+ and +issuer+
+      #   (string or symbol keys)
+      #
+      # Returns the verified claims
+      # Raises TokenValidationError when the token cannot be verified
+      def verify: (?Hash[Symbol | String, untyped] authorize_params) -> Hash[String, untyped]
+
+      # Decodes an ID token, verifying its signature but skipping claim
+      # checks
+      #
+      # - jwt: the ID token
+      #
+      # Returns a tuple of the claims and the JOSE header
+      # Raises TokenValidationError when the signature cannot be verified
+      def decode: () -> [Hash[String, untyped], Hash[String, untyped]]
+
+      private
+
+      def verify_iss: (Hash[String, untyped] claims, Hash[Symbol | String, untyped] params) -> void
+
+      def verify_sub: (Hash[String, untyped] claims) -> void
+
+      def verify_aud: (Hash[String, untyped] claims) -> void
+
+      def verify_expiration: (Hash[String, untyped] claims, Hash[Symbol | String, untyped] params) -> void
+
+      def verify_iat: (Hash[String, untyped] claims, Hash[Symbol | String, untyped] params) -> void
+
+      def verify_auth_time: (Hash[String, untyped] claims, Hash[Symbol | String, untyped] params) -> void
+
+      def verify_nonce: (Hash[String, untyped] claims, Hash[Symbol | String, untyped] params) -> void
+
+      def leeway: (Hash[Symbol | String, untyped] params) -> Integer
+
+      def token_head: (String? jwt) -> Hash[String, untyped]
+
+      def jwks_loader: () -> ^(?Hash[Symbol, untyped]) -> Hash[Symbol, Array[Hash[Symbol, untyped]]]
+
+      def fetch_keys: (?force: bool) -> Array[Hash[Symbol, untyped]]
+
+      def fetch_jwks_response: () -> (Net::HTTPSuccess | Net::HTTPResponse)
+
+      def parse_jwks: ((Net::HTTPSuccess | Net::HTTPResponse) response) -> Array[Hash[Symbol, untyped]]
+    end
+  end
+end

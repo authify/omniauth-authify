@@ -1,0 +1,78 @@
+# Signatures for the Authify OmniAuth strategy
+#
+# The strategy inherits the bulk of its behavior (options machine, request/
+# callback phase plumbing, credentials, token management) from
+# OmniAuth::Strategies::OAuth2, whose definitions live in the
+# omniauth-oauth2 gem's own signatures. Only the public surface added or
+# overridden by this gem is described here.
+
+module OmniAuth
+  module Strategies
+    # OmniAuth strategy for Authify, a self-hosted, multi-tenant identity
+    # provider implementing OpenID Connect on top of OAuth 2.0
+    class Authify < OmniAuth::Strategies::OAuth2
+      # Scopes requested when the user does not configure any
+      DEFAULT_SCOPE: String
+
+      # Returns the strategy name used in URLs (+/auth/authify+).
+      # Actually provided by the +option :name+ mechanism at runtime.
+      #
+      # Builds and memoizes the underlying OAuth2 client, raising
+      # ConfigurationError unless both +:site+ and +:organization+ options
+      # are present.
+      def client: () -> ::OAuth2::Client
+
+      # The +uid+ block is configured at class definition time and reads
+      # +raw_info["sub"]+; not a normal method override.
+
+      # Authorize-phase parameters: OAuth2 defaults plus scope/state handling,
+      # a freshly generated +nonce+, the configured +leeway+, and a
+      # request-provided +prompt+ forwarded to Authify when present.
+      def authorize_params: () -> Hash[Symbol, untyped]
+
+      # Initiates the authorization redirect after validating configuration
+      def request_phase: () -> rack_response
+
+      # Completes the callback: validates the OAuth2 state, exchanges the
+      # code for tokens, and (unless +verify_id_token+ is disabled) verifies
+      # the ID token signature and claims while the auth hash is assembled
+      def callback_phase: () -> rack_response
+
+      private
+
+      # Persists per-login parameters (nonce, leeway, max_age) in the session
+      def store_authorize_params: (Hash[Symbol, untyped] params) -> void
+
+      # Session-stored authorize parameters, symbolized; consumed once
+      def stored_authorize_params: () -> Hash[Symbol, untyped]
+
+      # True when either +:site+ or +:organization+ is blank
+      def missing_configuration?: () -> bool
+
+      # The ID token from the token endpoint response, or nil
+      def id_token: () -> String?
+
+      # A validator bound to this organization's issuer and JWKS
+      def jwt_validator: () -> ::OmniAuth::Authify::JwtValidator
+
+      # +site+ joined with +organization+, trailing slashes normalized
+      def org_base: () -> String
+
+      # Raises ConfigurationError when +missing_configuration?+
+      def validate_configuration!: () -> void
+
+      # +org_base+ (kept as a separate name for overriding in subclasses)
+      def normalized_base: () -> String
+
+      # Normalized (nil when blank) ID token value from the access token
+      def normalized_id_token: () -> String?
+
+      # Verified ID token claims (signature-verified), or the userinfo
+      # response when verification is disabled
+      def raw_info: () -> Hash[String, untyped]
+
+      # Organization-scoped userinfo endpoint URL
+      def userinfo_url: () -> String
+    end
+  end
+end

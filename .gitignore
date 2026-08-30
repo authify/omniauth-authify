@@ -1,0 +1,14 @@
+/.bundle/
+/.yardoc
+/_yardoc/
+/coverage/
+/doc/
+/pkg/
+/spec/reports/
+/tmp/
+/.ruby-lsp/
+
+# rspec failure tracking
+.rspec_status
+
+omniauth-authify-*.gem
