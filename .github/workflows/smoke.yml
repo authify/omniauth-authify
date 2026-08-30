@@ -61,9 +61,10 @@ jobs:
 
       - name: Bootstrap Authify (org, user, OAuth app)
         env:
-          DB_CONTAINER: authify
+          DB_CONTAINER: mysql
           DB_USER: root
           DB_PASS: ci_root_pw
+          DB_NAME: authify_prod
           ORG_SLUG: ci-org
         run: |
           bash spec/smoke/bootstrap_authify.sh | tee bootstrap.env

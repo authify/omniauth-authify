@@ -12,9 +12,10 @@
 #   AUTHIFY_URL   - base URL of the running Authify (default http://localhost:4000)
 #   ORG_SLUG      - organization slug to create (default ci-org)
 #   Mysql access is only needed for invitation tokens; accepted via:
-#   DB_CONTAINER  - MySQL container name (token extraction; optional but
-#                   required since invitation emails are not sent without SMTP)
-#   DB_USER/DB_PASS - credentials for that container's root user
+#   DB_CONTAINER  - the MySQL *container* name (token extraction; required
+#                   since invitation emails are not sent without SMTP)
+#   DB_USER/DB_PASS - credentials for that container
+#   DB_NAME       - database name (default authify_prod)
 #
 # Outputs (stdout, KEY=value lines):
 #   ORG_SLUG=, ADMIN_EMAIL=, ADMIN_PASSWORD=, USER_EMAIL=, USER_PASSWORD=,
@@ -23,6 +24,7 @@ set -eu
 
 AUTHIFY_URL="${AUTHIFY_URL:-http://localhost:4000}"
 ORG_SLUG="${ORG_SLUG:-ci-org}"
+DB_NAME="${DB_NAME:-authify_prod}"
 ORG_NAME="${ORG_NAME:-CI Org}"
 
 ADMIN_EMAIL="ci-admin@${ORG_SLUG}.test"
@@ -44,7 +46,9 @@ extract_client_secret() { # $1 = application show page HTML
 }
 
 db_token_for() { # $1 = email
-  docker exec "$DB_CONTAINER" mysql -u "$DB_USER" -p"$DB_PASS" authify_prod -N \
+  # Run the mysql client inside the *MySQL* container; the Authify release
+  # image ships without a mysql binary.
+  docker exec "$DB_CONTAINER" mysql -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" -N \
     -e "SELECT token FROM invitations WHERE email='$1' ORDER BY id DESC LIMIT 1" 2>/dev/null | tr -d '[:space:]'
 }
 
