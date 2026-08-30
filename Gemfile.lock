@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    omniauth-authify (0.1.0)
+    omniauth-authify (0.1.1)
       base64 (~> 0.2)
       jwt (>= 2.8, < 4)
       omniauth (~> 2.1)
