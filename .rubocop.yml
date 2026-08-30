@@ -75,6 +75,12 @@ RSpec/SpecFilePathFormat:
   CustomTransform:
     OmniAuth: omni_auth
 
+# The smoke harness (spec/smoke) is standalone tooling driven by bash and
+# ruby-one-offs, not an RSpec suite; treat it as regular Ruby.
+RSpec:
+  Exclude:
+  - 'spec/smoke/**/*'
+
 RSpec/NamedSubject:
   Enabled: false
 

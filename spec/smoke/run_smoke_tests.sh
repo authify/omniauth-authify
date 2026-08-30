@@ -79,30 +79,14 @@ login_as_user() {
 }
 
 approve_consent() {
-  python3 - "$D/consent.html" true "$D/consent_body.txt" <<'EOF'
-import re, sys, urllib.parse
-html = open(sys.argv[1]).read()
-forms = re.findall(r"<form.*?</form>", html, re.S)
-form = next((f for f in forms if 'name="approve" value="true"' in f), None)
-assert form, "no approve form"
-open(sys.argv[3], "w").write(urllib.parse.urlencode(
-    re.findall(r'<input[^>]*name="([^"]+)"[^>]*value="([^"]*)"[^>]*>', form)))
-EOF
+  ruby "$SCRIPT_DIR/smoke_helper.rb" consent_fields "$D/consent.html" true "$D/consent_body.txt"
   curl -s -b "$JAR" -c "$JAR" -X POST "$SITE/$SMOKE_ORG/oauth/consent" \
     -H "Content-Type: application/x-www-form-urlencoded" \
     --data-binary "@$D/consent_body.txt" -D "$D/5.txt" -o /dev/null
 }
 
 deny_consent() {
-  python3 - "$D/consent.html" "$D/consent_body.txt" <<'EOF'
-import re, sys, urllib.parse
-html = open(sys.argv[1]).read()
-forms = re.findall(r"<form.*?</form>", html, re.S)
-form = next((f for f in forms if 'name="approve" value="false"' in f), None)
-assert form, "no deny form"
-open(sys.argv[2], "w").write(urllib.parse.urlencode(
-    re.findall(r'<input[^>]*name="([^"]+)"[^>]*value="([^"]*)"[^>]*>', form)))
-EOF
+  ruby "$SCRIPT_DIR/smoke_helper.rb" consent_fields "$D/consent.html" false "$D/consent_body.txt"
   curl -s -b "$JAR" -c "$JAR" -X POST "$SITE/$SMOKE_ORG/oauth/consent" \
     -H "Content-Type: application/x-www-form-urlencoded" \
     --data-binary "@$D/consent_body.txt" -D "$D/5.txt" -o /dev/null
@@ -140,8 +124,8 @@ begin_flow
 login_as_user
 approve_consent
 CODE_URL="$(location_of "$D/5.txt")"
-CODE="$(python3 -c "import urllib.parse; print(urllib.parse.parse_qs(urllib.parse.urlparse('$CODE_URL').query)['code'][0])")"
-STATE="$(python3 -c "import urllib.parse; print(urllib.parse.parse_qs(urllib.parse.urlparse('$CODE_URL').query)['state'][0])")"
+CODE="$(ruby "$SCRIPT_DIR/smoke_helper.rb" parse_query "$CODE_URL" | sed -n 's/^code=//p')"
+STATE="$(ruby "$SCRIPT_DIR/smoke_helper.rb" parse_query "$CODE_URL" | sed -n 's/^state=//p')"
 curl -s -b "$JAR" -c "$JAR" "$CODE_URL" -o /dev/null
 echo ">  replaying code $CODE (must fail)"
 curl -s -D "$D/6.txt" -b "$JAR" -c "$JAR" "$CODE_URL" -o /dev/null
