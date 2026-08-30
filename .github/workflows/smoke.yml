@@ -1,0 +1,86 @@
+name: Smoke
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  smoke:
+    name: Live smoke test (real Authify)
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci_root_pw
+          MYSQL_DATABASE: authify_prod
+          MYSQL_USER: authify
+          MYSQL_PASSWORD: ci_db_pw
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -u root -pci_root_pw"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: .ruby-version
+          bundler-cache: true
+
+      - name: Start Authify (ghcr.io/authify/authify:latest)
+        run: |
+          KEY=$(ruby -rsecurerandom -e 'print SecureRandom.hex(64)')
+          docker run -d --name authify --network host \
+            -e DATABASE_URL="ecto://authify:ci_db_pw@127.0.0.1:3306/authify_prod" \
+            -e SECRET_KEY_BASE="$KEY" \
+            -e RELEASE_COOKIE="ci" \
+            -e PHX_HOST="localhost" -e PORT=4000 -e POOL_SIZE=5 -e URL_SCHEME=http \
+            ghcr.io/authify/authify:latest sh -c "
+              sed -i 's/url: \[host: host, port: 443, scheme: \"https\"\]/url: [host: host, port: String.to_integer(System.get_env(\"PORT\")), scheme: \"http\"]/' /app/releases/*/runtime.exs &&
+              /app/bin/authify eval 'Authify.Release.migrate' && /app/bin/server"
+
+          echo "Waiting for Authify..."
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:4000/setup || echo 000)
+            if [ "$code" = "200" ] || [ "$code" = "302" ]; then
+              echo "Authify ready after ~$((i * 2))s"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Authify failed to start"; docker logs authify; exit 1
+
+      - name: Bootstrap Authify (org, user, OAuth app)
+        env:
+          DB_CONTAINER: authify
+          DB_USER: root
+          DB_PASS: ci_root_pw
+          ORG_SLUG: ci-org
+        run: |
+          bash spec/smoke/bootstrap_authify.sh | tee bootstrap.env
+          grep "^CLIENT_ID=" bootstrap.env >> "$GITHUB_ENV"
+          grep "^CLIENT_SECRET=" bootstrap.env >> "$GITHUB_ENV"
+          grep "^USER_EMAIL=" bootstrap.env >> "$GITHUB_ENV"
+          grep "^USER_PASSWORD=" bootstrap.env >> "$GITHUB_ENV"
+
+      - name: Run smoke tests
+        env:
+          SMOKE_ORG: ci-org
+          SMOKE_CLIENT_ID: ${{ env.CLIENT_ID }}
+          SMOKE_CLIENT_SECRET: ${{ env.CLIENT_SECRET }}
+          SMOKE_USER_EMAIL: ${{ env.USER_EMAIL }}
+          SMOKE_USER_PASSWORD: ${{ env.USER_PASSWORD }}
+        run: bash spec/smoke/run_smoke_tests.sh
+
+      - name: Dump Authify logs on failure
+        if: failure()
+        run: docker logs authify | tail -100
