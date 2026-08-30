@@ -12,11 +12,6 @@ SimpleCov.start do
   add_filter "/.bundle/"
 end
 
-if ENV["CI"] == "true"
-  require "simplecov-cobertura"
-  SimpleCov.formatter = SimpleCov::Formatter::CoberturaFormatter
-end
-
 require "rspec"
 require "rack/test"
 require "webmock/rspec"
