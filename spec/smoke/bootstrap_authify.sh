@@ -47,8 +47,12 @@ extract_client_secret() { # $1 = application show page HTML
 
 db_token_for() { # $1 = email
   # Run the mysql client inside the *MySQL* container; the Authify release
-  # image ships without a mysql binary.
-  docker exec "$DB_CONTAINER" mysql -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" -N \
+  # image ships without a mysql binary. $DB_CONTAINER is a name fragment
+  # (e.g. the service name); resolve it against running containers.
+  local cid
+  cid="$(docker ps --filter "name=$DB_CONTAINER" --format '{{.ID}}' | head -1)"
+  [ -n "$cid" ] || { echo "FAIL: no container matching DB_CONTAINER=$DB_CONTAINER" >&2; return 1; }
+  docker exec "$cid" mysql -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" -N \
     -e "SELECT token FROM invitations WHERE email='$1' ORDER BY id DESC LIMIT 1" 2>/dev/null | tr -d '[:space:]'
 }
 
